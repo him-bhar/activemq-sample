@@ -9,10 +9,13 @@ import org.apache.activemq.command.ActiveMQDestination;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.activemq.command.ActiveMQTextMessage;
 import org.apache.activemq.command.ActiveMQTopic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
 import javax.jms.Session;
+import javax.jms.Topic;
 
 public class JMSMessageReceiver implements MessageReceiver<Message> {
 
@@ -21,19 +24,30 @@ public class JMSMessageReceiver implements MessageReceiver<Message> {
   private final String destinationName;
   private final MessageConsumer messageConsumer;
   private final ActionableListener actionableListener;
+  private static final Logger LOG = LoggerFactory.getLogger(JMSMessageReceiver.class);
 
   public JMSMessageReceiver(Session session, String destinationName, boolean isTopic, ActionableListener actionableListener) throws JMSException {
+    this(session, destinationName, isTopic, false, actionableListener, null);
+  }
+
+  public JMSMessageReceiver(Session session, String destinationName, boolean isTopic, boolean isDurableSubscription, ActionableListener actionableListener, String clientId) throws JMSException {
     this.session = session;
     this.isTopic = isTopic;
     this.destinationName = destinationName;
 
-    ActiveMQDestination mqDestination;
+
     if (this.isTopic) {
-      mqDestination = new ActiveMQTopic(this.destinationName);
+      Topic mqDestination = new ActiveMQTopic(this.destinationName);
+      if (isDurableSubscription) {
+        messageConsumer = this.session.createDurableSubscriber(mqDestination, clientId);
+      } else {
+        messageConsumer = this.session.createConsumer(mqDestination);
+      }
     } else {
-      mqDestination = new ActiveMQQueue(this.destinationName);
+      ActiveMQDestination mqDestination = new ActiveMQQueue(this.destinationName);
+      messageConsumer = this.session.createConsumer(mqDestination);
     }
-    messageConsumer = this.session.createConsumer(mqDestination);
+
     messageConsumer.setMessageListener(this::receiveFromMQ);
     this.actionableListener = actionableListener;
   }
@@ -50,7 +64,7 @@ public class JMSMessageReceiver implements MessageReceiver<Message> {
 
   @Override
   public void receive(Message message) {
-    System.out.println("Receving: "+message);
+    LOG.info("Receiving: {}", message);
     if (actionableListener != null) {
       actionableListener.onMessage(message);
     }

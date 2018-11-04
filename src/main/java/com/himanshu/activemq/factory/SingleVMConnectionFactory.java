@@ -12,7 +12,8 @@ public class SingleVMConnectionFactory {
   private javax.jms.ConnectionFactory connectionFactory;
 
   private SingleVMConnectionFactory() {
-    connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
+    //connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
+    connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61616");
   }
 
   public javax.jms.ConnectionFactory getConnectionFactory() {
